@@ -90,7 +90,7 @@ tasks:
   apisix:dashboard:
     desc: "Port-forward to Apache APISIX Dashboard"
     cmds:
-      - kubectl port-forward svc/apisix-dashboard 8080:80 --address 0.0.0.0
+      - kubectl port-forward svc/apisix-dashboard 9000:80 --address 0.0.0.0
 
   apisix:uninstall:
     desc: "Uninstall Apache APISIX and Dashboard"
