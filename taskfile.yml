@@ -17,15 +17,15 @@ tasks:
     desc: "Delete the Kubernetes cluster created by Kind"
 
   cilium:install:
-      desc: "Install Cilium with L7, Gateway API sand Kube-Proxy Replacement"
+      desc: "Install Cilium as CNI and L2 LoadBalancer (No L7/No Envoy)"
       cmds:
-        - kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.1.0/standard-install.yaml
         - >
           cilium install 
           --set k8sServiceHost=my-lab-control-plane 
           --set k8sServicePort=6443 
           --set kubeProxyReplacement=true 
-          --set gatewayAPI.enabled=true 
+          --set gatewayAPI.enabled=false
+          --set l7Proxy=false
           --set hostServices.enabled=true 
           --set externalIPs.enabled=true
           --set l2announcements.enabled=true
@@ -33,6 +33,7 @@ tasks:
         - cilium status --wait
         - kubectl apply -f infra/l2policy.yaml
         - kubectl apply -f infra/pool.yaml
+
 
   python-env:
     cmds:
@@ -81,3 +82,25 @@ tasks:
     cmds:
       - docker build -t django-app:latest ./server
       - kind load docker-image django-app:latest --name my-lab
+
+
+  apisix:install:
+    desc: "Install Official Apache APISIX with Dashboard and LoadBalancer"
+    cmds:
+      - helm repo add apisix https://charts.apiseven.com
+      - helm repo update
+      - >
+        helm upgrade --install apisix apisix/apisix \
+          --set gateway.type=LoadBalancer \
+          --set dashboard.enabled=true \
+          --set admin.allow.ipList=""
+  apisix:dashboard:
+    desc: "Port-forward to Apache APISIX Dashboard"
+    cmds:
+      - echo "Access APISIX Dashboard at http://localhost:8080 (User/Pass: admin/admin)"
+      - kubectl port-forward svc/apisix-dashboard 8080:80 --address 0.0.0.0
+
+  apisix:uninstall:
+    desc: "Uninstall Apache APISIX"
+    cmds:
+      - helm uninstall apisix
