@@ -58,24 +58,14 @@ tasks:
   keycloak:uninstall:
     cmds:
       - helm uninstall keycloak
-  oauth2-proxy:deploy:
-    desc: "Deploy OAuth2-Proxy using Helm"
-    cmds:
-      - helm repo add oauth2-proxy https://oauth2-proxy.github.io/manifests
-      - helm repo update
-      - helm upgrade --install oauth2-proxy oauth2-proxy/oauth2-proxy -f infra/oauth2-proxy-values.yaml
 
   deploy-all:
-    desc: "Apply all Kubernetes manifests"
+    desc: "Apply Django Kubernetes manifests"
     cmds:
       - kubectl apply -f server/django-secret.yaml
       - kubectl apply -f infra/k8s/django-configmap.yaml
       - kubectl apply -f infra/k8s/django-deployment.yaml
       - kubectl apply -f infra/k8s/django-service.yaml
-      - kubectl apply -f infra/k8s/gateway.yaml
-      - kubectl apply -f infra/k8s/envoy-auth-config.yaml
-      - kubectl apply -f infra/k8s/route-keycloak.yaml
-      - kubectl apply -f infra/k8s/route-django.yaml
 
   django:build:
     desc: "Build and load Django image into Kind"
@@ -83,24 +73,27 @@ tasks:
       - docker build -t django-app:latest ./server
       - kind load docker-image django-app:latest --name my-lab
 
-
   apisix:install:
-    desc: "Install Official Apache APISIX with Dashboard and LoadBalancer"
+    desc: "Install Official Apache APISIX and its Dashboard"
     cmds:
       - helm repo add apisix https://charts.apiseven.com
       - helm repo update
       - >
         helm upgrade --install apisix apisix/apisix \
           --set gateway.type=LoadBalancer \
-          --set dashboard.enabled=true \
+          --set gateway.service.type=LoadBalancer \
           --set admin.allow.ipList=""
+      - >
+        helm upgrade --install apisix-dashboard apisix/apisix-dashboard \
+          --set config.conf.etcd.endpoints={http://apisix-etcd:2379}
+
   apisix:dashboard:
     desc: "Port-forward to Apache APISIX Dashboard"
     cmds:
-      - echo "Access APISIX Dashboard at http://localhost:8080 (User/Pass: admin/admin)"
       - kubectl port-forward svc/apisix-dashboard 8080:80 --address 0.0.0.0
 
   apisix:uninstall:
-    desc: "Uninstall Apache APISIX"
+    desc: "Uninstall Apache APISIX and Dashboard"
     cmds:
+      - helm uninstall apisix-dashboard
       - helm uninstall apisix
